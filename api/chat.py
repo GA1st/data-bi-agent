@@ -8,11 +8,15 @@ from agents.chart_agent import suggest_chart
 from agents.anomaly_agent import detect_anomalies
 from services.query_executor import run_query
 from core.session import sessions
+from core.context import ContextManager, summarize_history
+from config import settings
 from core.logger import get_logger
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+_ctx = ContextManager(max_tokens=settings.context_max_tokens)
 
 
 class ChatRequest(BaseModel):
@@ -41,12 +45,18 @@ async def chat_endpoint(
         raise HTTPException(400, "消息不能为空")
 
     logger.info(f"Chat request from session {session_id[:8]}: {req.message[:50]}...")
+
     history = sessions.get_history(session_id)
+    summary = sessions.get_summary(session_id)
+
+    if _ctx.needs_summary(history, settings.context_summary_threshold):
+        summary = await summarize_history(history)
+        sessions.set_summary(session_id, summary)
 
     async def stream():
         yield _sse({"type": "status", "message": "正在分析您的问题..."})
 
-        sql_result = await nl_to_sql(req.message, history)
+        sql_result = await nl_to_sql(req.message, history, summary)
         if sql_result.get("error"):
             yield _sse({"type": "error", "message": sql_result["error"]})
             return
@@ -90,7 +100,7 @@ async def chat_endpoint(
         yield _sse({"type": "explanation", "message": explanation_text})
 
         sessions.append(session_id, {"question": req.message, "sql": sql})
-        logger.info(f"Chat completed: {query_result['row_count']} rows")
+        logger.info(f"Chat completed: {query_result['row_count']} rows (model: heavy=NL2SQL, light=chart+explain)")
 
         yield _sse({"type": "done"})
 
@@ -115,7 +125,10 @@ async def quick_query(req: QuickQueryRequest):
 
 @router.get("/history")
 async def get_history(session_id: str = Depends(_resolve_session)):
-    return {"history": sessions.get_history(session_id)[-20:]}
+    return {
+        "history": sessions.get_history(session_id)[-20:],
+        "summary": sessions.get_summary(session_id),
+    }
 
 
 @router.delete("/history")

@@ -2,11 +2,15 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # LLM
+    # LLM — main model for complex tasks (NL→SQL, report narrative)
     llm_api_base: str = "https://api.openai.com/v1"
     llm_api_key: str = ""
     llm_model: str = "gpt-4"
     llm_temperature: float = 0.0
+
+    # LLM — small model for simple tasks (SQL fix, chart, explanation)
+    llm_model_small: str = "gpt-4o-mini"
+    llm_auto_downgrade: bool = True  # auto use small model for simple tasks
 
     # Database
     database_url: str = "sqlite+aiosqlite:///data/demo.db"
@@ -33,6 +37,10 @@ class Settings(BaseSettings):
     cache_enabled: bool = True
     cache_ttl_seconds: int = 300
     cache_max_size: int = 128
+
+    # Context management
+    context_max_tokens: int = 8000
+    context_summary_threshold: int = 12
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

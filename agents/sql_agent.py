@@ -1,6 +1,8 @@
 import json
 from core.llm import chat_json, chat
-from core.database import get_full_schema, get_sample_data, get_table_names
+from core.database import get_full_schema
+from core.context import ContextManager, summarize_history
+from config import settings
 
 SYSTEM_PROMPT = """你是一个专业的数据分析师和SQL专家。你的任务是将用户的自然语言问题转换为准确的SQL查询。
 
@@ -26,26 +28,25 @@ SYSTEM_PROMPT = """你是一个专业的数据分析师和SQL专家。你的任�
 {schema}
 """
 
+_ctx = ContextManager(max_tokens=settings.context_max_tokens)
 
-async def nl_to_sql(question: str, history: list[dict] | None = None) -> dict:
+
+async def nl_to_sql(
+    question: str,
+    history: list[dict] | None = None,
+    summary: str | None = None,
+) -> dict:
     schema = get_full_schema()
-
     system = SYSTEM_PROMPT.format(schema=schema)
 
-    messages = [{"role": "system", "content": system}]
+    messages = _ctx.build_messages(system, history or [], question, summary)
 
-    if history:
-        for h in history[-6:]:
-            messages.append({"role": "user", "content": h.get("question", "")})
-            messages.append({"role": "assistant", "content": h.get("sql", "")})
-
-    messages.append({
-        "role": "user",
-        "content": f"问题: {question}\n\n请生成SQL查询，以JSON格式返回: {{\"sql\": \"...\", \"explanation\": \"...\", \"error\": null}}"
-    })
+    messages[-1]["content"] += (
+        "\n\n请生成SQL查询，以JSON格式返回: {\"sql\": \"...\", \"explanation\": \"...\", \"error\": null}"
+    )
 
     try:
-        result = await chat_json(messages, temperature=0)
+        result = await chat_json(messages, temperature=0, task_type="heavy")
         return {
             "sql": result.get("sql", ""),
             "explanation": result.get("explanation", ""),
@@ -64,7 +65,7 @@ async def explain_result(question: str, sql: str, data: list[dict], columns: lis
         {"role": "system", "content": "你是数据分析师，用简洁的中文解释查询结果中的关键发现。包含数字洞察，2-4句话。"},
         {"role": "user", "content": f"问题: {question}\nSQL: {sql}\n列: {columns}\n数据(前20行): {json.dumps(preview, ensure_ascii=False, default=str)}\n总行数: {len(data)}"},
     ]
-    return await chat(messages)
+    return await chat(messages, task_type="light")
 
 
 async def fix_sql(sql: str, error: str, question: str) -> dict:
@@ -74,7 +75,7 @@ async def fix_sql(sql: str, error: str, question: str) -> dict:
         {"role": "user", "content": f"问题: {question}\n错误的SQL: {sql}\n报错信息: {error}"},
     ]
     try:
-        result = await chat_json(messages)
+        result = await chat_json(messages, task_type="light")
         return {"sql": result.get("sql", ""), "explanation": result.get("explanation", "")}
     except Exception:
         return {"sql": "", "explanation": "无法自动修复SQL"}

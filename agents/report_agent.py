@@ -1,5 +1,5 @@
 import json
-from core.llm import chat_json, chat
+from core.llm import chat
 from core.database import execute_query
 
 
@@ -135,7 +135,8 @@ async def _generate_narrative(report_data: dict) -> str:
             "content": f"报告数据:\n{json.dumps(report_data, ensure_ascii=False, default=str)}",
         },
     ]
-    return await chat(messages)
+    # Report narrative is complex reasoning — use heavy model
+    return await chat(messages, task_type="heavy")
 
 
 def _generate_report_charts(kpis, trends, top_products, region_dist) -> dict:

@@ -8,6 +8,14 @@ logger = get_logger(__name__)
 
 _client: AsyncOpenAI | None = None
 
+# Task type -> model selection
+# heavy: NL→SQL, report narrative (needs deep reasoning)
+# light: SQL fix, chart config, result explanation (pattern matching)
+TASK_MODELS = {
+    "heavy": None,   # uses settings.llm_model
+    "light": None,   # uses settings.llm_model_small
+}
+
 
 def get_client() -> AsyncOpenAI:
     global _client
@@ -18,25 +26,39 @@ def get_client() -> AsyncOpenAI:
             timeout=30.0,
             max_retries=2,
         )
-        logger.info(f"LLM client initialized: {settings.llm_api_base} ({settings.llm_model})")
+        logger.info(f"LLM client initialized: {settings.llm_api_base} (heavy={settings.llm_model}, light={settings.llm_model_small})")
     return _client
+
+
+def _resolve_model(model: str | None = None, task_type: str = "heavy") -> str:
+    if model:
+        return model
+    if task_type == "light" and settings.llm_auto_downgrade:
+        return settings.llm_model_small
+    return settings.llm_model
 
 
 async def chat(
     messages: list[dict],
     temperature: float | None = None,
     json_mode: bool = False,
+    model: str | None = None,
+    task_type: str = "heavy",
 ) -> str:
+    resolved_model = _resolve_model(model, task_type)
     try:
         client = get_client()
         kwargs = {
-            "model": settings.llm_model,
+            "model": resolved_model,
             "messages": messages,
             "temperature": temperature or settings.llm_temperature,
         }
         if json_mode:
             kwargs["response_format"] = {"type": "json_object"}
         response = await client.chat.completions.create(**kwargs)
+        usage = response.usage
+        if usage:
+            logger.debug(f"LLM call ({resolved_model}): {usage.prompt_tokens}+{usage.completion_tokens} tokens")
         return response.choices[0].message.content
     except Exception as e:
         logger.error(f"LLM chat error: {e}")
@@ -61,8 +83,13 @@ async def chat_stream(messages: list[dict], temperature: float | None = None):
         raise LLMError(str(e)) from e
 
 
-async def chat_json(messages: list[dict], temperature: float | None = None) -> dict:
-    raw = await chat(messages, temperature=temperature, json_mode=True)
+async def chat_json(
+    messages: list[dict],
+    temperature: float | None = None,
+    model: str | None = None,
+    task_type: str = "heavy",
+) -> dict:
+    raw = await chat(messages, temperature=temperature, json_mode=True, model=model, task_type=task_type)
     try:
         return json.loads(raw)
     except json.JSONDecodeError as e:

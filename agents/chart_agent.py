@@ -17,17 +17,13 @@ async def suggest_chart(question: str, sql: str, data: list[dict], columns: list
 - line: 折线图 (展示趋势变化)
 - pie: 饼图 (展示占比)
 - scatter: 散点图 (展示相关性)
-- heatmap: 热力图 (展示密度/分布)
 
 规则:
 1. 使用 ECharts option 格式
 2. 标题、标签、图例全部用中文
-3. 颜色使用专业配色
-4. 合理使用 tooltip
-5. 如果只有一个数值结果，用 bar 图
-6. 时间序列数据用 line 图
-7. 类别占比用 pie 图 (不超过10个分类)
-8. 数值使用合适的格式化
+3. 合理使用 tooltip
+4. 时间序列数据用 line 图
+5. 类别占比用 pie 图 (不超过10个分类)
 
 返回JSON:
 {
@@ -43,7 +39,7 @@ async def suggest_chart(question: str, sql: str, data: list[dict], columns: list
     ]
 
     try:
-        result = await chat_json(messages, temperature=0.1)
+        result = await chat_json(messages, temperature=0.1, task_type="light")
         return result
     except Exception:
         return _fallback_chart(data, columns)
