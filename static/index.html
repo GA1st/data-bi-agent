@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data BI Agent - 智能数据分析平台</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <div class="logo">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                        <line x1="12" y1="22.08" x2="12" y2="12"/>
+                    </svg>
+                    <h1>Data BI Agent</h1>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="suggestion-chips" id="suggestionChips">
+                    <button class="chip" onclick="askSuggestion(this)">本月销售额</button>
+                    <button class="chip" onclick="askSuggestion(this)">各区域销售排名</button>
+                    <button class="chip" onclick="askSuggestion(this)">销量TOP10产品</button>
+                    <button class="chip" onclick="askSuggestion(this)">客户增长趋势</button>
+                    <button class="chip" onclick="askSuggestion(this)">检测异常订单</button>
+                    <button class="chip" onclick="askSuggestion(this)">生成经营报告</button>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="icon-btn" onclick="toggleAnomaly()" id="anomalyBtn" title="异常检测">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </button>
+                <button class="icon-btn" onclick="clearHistory()" title="清空对话">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6"/>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+                <button class="icon-btn" onclick="showApiDocs()" title="API文档">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Chat Panel -->
+            <aside class="chat-panel" id="chatPanel">
+                <div class="chat-messages" id="chatMessages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                <line x1="12" y1="22.08" x2="12" y2="12"/>
+                            </svg>
+                        </div>
+                        <h2>欢迎使用 Data BI Agent</h2>
+                        <p>用自然语言提问，我会帮你查询数据、生成图表和报告</p>
+                        <div class="quick-actions">
+                            <button onclick="askSuggestion(this)">最近7天销售趋势</button>
+                            <button onclick="askSuggestion(this)">哪个区域客户最多</button>
+                            <button onclick="askSuggestion(this)">各品类销售占比</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <div class="input-wrapper">
+                        <textarea id="chatInput" placeholder="输入你的数据分析问题..." rows="1"
+                                  onkeydown="handleKeyDown(event)"></textarea>
+                        <button class="send-btn" onclick="sendMessage()" id="sendBtn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="22" y1="2" x2="11" y2="13"/>
+                                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="input-hint">
+                        <span id="anomalyStatus">异常检测: 关闭</span>
+                        <span>按 Enter 发送，Shift+Enter 换行</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Data Panel -->
+            <section class="data-panel" id="dataPanel">
+                <div class="data-panel-empty" id="emptyState">
+                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                        <line x1="3" y1="9" x2="21" y2="9"/>
+                        <line x1="9" y1="21" x2="9" y2="9"/>
+                    </svg>
+                    <p>查询结果将在此处展示</p>
+                </div>
+
+                <div class="data-content" id="dataContent" style="display:none;">
+                    <!-- Tab bar -->
+                    <div class="tab-bar">
+                        <button class="tab active" onclick="switchTab('table', this)">数据表格</button>
+                        <button class="tab" onclick="switchTab('chart', this)">可视化图表</button>
+                        <button class="tab" onclick="switchTab('report', this)">分析报告</button>
+                        <div class="tab-actions">
+                            <span class="result-info" id="resultInfo"></span>
+                            <button class="action-btn" onclick="exportCSV()" title="导出CSV">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                    <polyline points="7 10 12 15 17 10"/>
+                                    <line x1="12" y1="15" x2="12" y2="3"/>
+                                </svg>
+                                导出
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- SQL display -->
+                    <div class="sql-display" id="sqlDisplay" style="display:none;">
+                        <div class="sql-header">
+                            <span>生成的SQL</span>
+                            <button class="copy-btn" onclick="copySQL()">复制</button>
+                        </div>
+                        <code id="sqlCode"></code>
+                    </div>
+
+                    <!-- Table view -->
+                    <div class="tab-content active" id="tableView">
+                        <div class="table-container" id="tableContainer"></div>
+                    </div>
+
+                    <!-- Chart view -->
+                    <div class="tab-content" id="chartView">
+                        <div class="chart-container" id="chartContainer"></div>
+                    </div>
+
+                    <!-- Report view -->
+                    <div class="tab-content" id="reportView">
+                        <div class="report-container" id="reportContainer"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/chat.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
