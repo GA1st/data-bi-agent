@@ -1,6 +1,9 @@
 import json
 from core.llm import chat
 from core.database import execute_query
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 
 async def generate_report(report_type: str = "daily") -> dict:
@@ -20,7 +23,7 @@ async def generate_report(report_type: str = "daily") -> dict:
     }
 
     narrative = await _generate_narrative(report_data)
-    report_data["narrative"] = narrative
+    report_data["narrative"] = narrative or "报告生成需要配置 LLM API Key。"
 
     charts = _generate_report_charts(kpis, trends, top_products, region_dist)
     report_data["charts"] = charts
@@ -124,19 +127,22 @@ def _get_anomaly_summary() -> dict:
     return {"status": f"检测到{len(anomalies)}个异常日", "details": anomalies[:5]}
 
 
-async def _generate_narrative(report_data: dict) -> str:
-    messages = [
-        {
-            "role": "system",
-            "content": "你是高级数据分析师。根据以下数据指标，用简洁专业的中文撰写一份经营分析摘要。包括关键数据、趋势判断、异常提醒和行动建议。不超过300字。",
-        },
-        {
-            "role": "user",
-            "content": f"报告数据:\n{json.dumps(report_data, ensure_ascii=False, default=str)}",
-        },
-    ]
-    # Report narrative is complex reasoning — use heavy model
-    return await chat(messages, task_type="heavy")
+async def _generate_narrative(report_data: dict) -> str | None:
+    try:
+        messages = [
+            {
+                "role": "system",
+                "content": "你是高级数据分析师。根据以下数据指标，用简洁专业的中文撰写一份经营分析摘要。包括关键数据、趋势判断、异常提醒和行动建议。不超过300字。",
+            },
+            {
+                "role": "user",
+                "content": f"报告数据:\n{json.dumps(report_data, ensure_ascii=False, default=str)}",
+            },
+        ]
+        return await chat(messages, task_type="heavy")
+    except Exception as e:
+        logger.warning(f"Narrative generation failed: {e}")
+        return None
 
 
 def _generate_report_charts(kpis, trends, top_products, region_dist) -> dict:

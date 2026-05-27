@@ -14,6 +14,7 @@ from services.data_initializer import init_demo_data
 from api.chat import router as chat_router
 from api.dashboard import router as dashboard_router
 from api.database_manage import router as db_router
+from api.data_explorer import router as explorer_router
 
 
 @asynccontextmanager
@@ -78,6 +79,7 @@ app.add_middleware(SecurityHeadersMiddleware)
 app.include_router(chat_router)
 app.include_router(dashboard_router)
 app.include_router(db_router)
+app.include_router(explorer_router)
 
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():

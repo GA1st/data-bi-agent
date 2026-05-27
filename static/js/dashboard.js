@@ -1,152 +1,187 @@
-function showDataTable(data, columns, totalCount) {
-    const container = document.getElementById('tableContainer');
-    document.getElementById('resultInfo').textContent =
-        `${totalCount} 行${totalCount !== data.length ? ` (显示前 ${data.length} 行)` : ''}`;
-
-    if (!data.length) {
-        container.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px;">查询无数据</p>';
-        return;
-    }
-
-    let html = '<table><thead><tr>';
-    columns.forEach(col => {
-        html += `<th>${escapeHtml(col)}</th>`;
-    });
-    html += '</tr></thead><tbody>';
-
-    data.forEach(row => {
-        html += '<tr>';
-        columns.forEach(col => {
-            const val = row[col];
-            const isNum = typeof val === 'number';
-            const display = val === null || val === undefined ? '-' : val;
-            html += `<td class="${isNum ? 'number' : ''}">${escapeHtml(String(display))}</td>`;
-        });
-        html += '</tr>';
-    });
-
-    html += '</tbody></table>';
-    container.innerHTML = html;
-}
-
-function showChart(config) {
-    const container = document.getElementById('chartContainer');
-
-    if (currentChart) {
-        currentChart.dispose();
-        currentChart = null;
-    }
-
-    // Apply dark theme
-    const darkConfig = {
-        backgroundColor: 'transparent',
-        textStyle: { color: '#94a3b8' },
-        title: { textStyle: { color: '#f1f5f9' } },
-        legend: { textStyle: { color: '#94a3b8' } },
-        tooltip: {
-            backgroundColor: '#1e293b',
-            borderColor: '#334155',
-            textStyle: { color: '#f1f5f9' },
-        },
-        ...config,
-    };
-
-    // Ensure grid has enough bottom margin for labels
-    if (darkConfig.xAxis && darkConfig.xAxis.data && darkConfig.xAxis.data.length > 8) {
-        darkConfig.grid = darkConfig.grid || {};
-        darkConfig.grid.bottom = darkConfig.grid.bottom || 80;
-        darkConfig.xAxis.axisLabel = darkConfig.xAxis.axisLabel || {};
-        darkConfig.xAxis.axisLabel.rotate = darkConfig.xAxis.axisLabel.rotate || 30;
-    }
-
-    currentChart = echarts.init(container, null, { renderer: 'canvas' });
-    currentChart.setOption(darkConfig);
-
-    window.addEventListener('resize', () => {
-        if (currentChart) currentChart.resize();
-    });
-}
-
-function showAnomalyAlert(anomalyResult) {
-    const reportContainer = document.getElementById('reportContainer');
-    let html = '<div class="anomaly-alert">';
-    html += `<h4>检测到 ${anomalyResult.anomaly_count} 个数据异常</h4>`;
-    html += '<ul>';
-    anomalyResult.anomalies.slice(5).forEach(a => {
-        html += `<li><strong>${a.column}</strong>: 值 ${a.value} (${a.method}: ${a.reason})</li>`;
-    });
-    html += '</ul>';
-    if (anomalyResult.summary) {
-        html += `<p style="margin-top:8px;font-size:12px;color:var(--text-muted);">${escapeHtml(anomalyResult.summary)}</p>`;
-    }
-    html += '</div>';
-    reportContainer.innerHTML = html;
-
-    // Switch to report tab
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tab')[2].classList.add('active');
-    document.getElementById('reportView').classList.add('active');
-}
-
-// Report generation via dashboard API
-async function loadDashboardReport() {
-    const reportContainer = document.getElementById('reportContainer');
-    reportContainer.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:40px;">正在生成报告...</p>';
-
+// --- Dashboard ---
+async function refreshDashboard() {
+    const c = document.getElementById('dashboardContent');
+    c.innerHTML = '<div class="loading">加载中...</div>';
     try {
         const res = await fetch('/api/dashboard/report');
-        const report = await res.json();
-
-        let html = '';
-
-        // KPIs
-        if (report.kpis) {
-            html += '<div class="report-kpis">';
-            html += kpiCard(report.kpis.total_revenue, '总收入');
-            html += kpiCard(report.kpis.total_orders, '总订单');
-            html += kpiCard(report.kpis.total_customers, '总客户');
-            html += kpiCard(report.kpis.avg_order_amount, '平均客单价');
-            html += kpiCard(report.kpis.month_revenue, '本月收入');
-            html += kpiCard(report.kpis.cancel_rate, '取消率(%)');
-            html += '</div>';
-        }
-
-        // Narrative
-        if (report.narrative) {
-            html += `<div class="report-section"><h3>经营分析摘要</h3><div class="narrative">${renderMarkdown(report.narrative)}</div></div>`;
-        }
-
-        // Anomalies
-        if (report.anomalies && report.anomalies.details && report.anomalies.details.length > 0) {
-            html += '<div class="anomaly-alert">';
-            html += `<h4>${report.anomalies.status}</h4><ul>`;
-            report.anomalies.details.forEach(d => {
-                html += `<li>${d.date}: 收入 ${d.revenue} (${d.deviation})</li>`;
-            });
-            html += '</ul></div>';
-        }
-
-        reportContainer.innerHTML = html;
-
-        // Show charts in chart tab if we have them
-        if (report.charts) {
-            document.getElementById('emptyState').style.display = 'none';
-            document.getElementById('dataContent').style.display = 'flex';
-
-            if (report.charts.trend) {
-                currentColumns = ['月份', '收入', '订单数'];
-                showChart(report.charts.trend);
-            }
-        }
-    } catch (err) {
-        reportContainer.innerHTML = `<p style="text-align:center;color:var(--error);padding:40px;">报告生成失败: ${err.message}</p>`;
+        const r = await res.json();
+        renderDashboard(r);
+    } catch (e) {
+        c.innerHTML = `<div class="loading">加载失败: ${e.message}</div>`;
     }
 }
 
-function kpiCard(value, label) {
-    const formatted = typeof value === 'number'
-        ? (value >= 10000 ? (value / 10000).toFixed(1) + '万' : value.toLocaleString())
-        : (value || '-');
-    return `<div class="kpi-card"><div class="kpi-value">${formatted}</div><div class="kpi-label">${label}</div></div>`;
+function renderDashboard(r) {
+    const c = document.getElementById('dashboardContent');
+    let html = '';
+
+    // KPI cards
+    if (r.kpis) {
+        html += '<div class="kpi-grid">';
+        html += kpi('总收入', r.kpis.total_revenue, 'c1', '所有有效订单');
+        html += kpi('本月收入', r.kpis.month_revenue, 'c2', `${r.kpis.month_orders || '-'} 笔订单`);
+        html += kpi('总订单', r.kpis.total_orders, 'c3', '有效订单');
+        html += kpi('客户数', r.kpis.total_customers, 'c4', '注册客户');
+        html += kpi('客单价', r.kpis.avg_order_amount, 'c5', '平均订单金额');
+        html += kpi('取消率', r.kpis.cancel_rate + '%', 'c6', '订单取消比例');
+        html += '</div>';
+    }
+
+    // Charts
+    html += '<div class="charts-grid">';
+    if (r.charts) {
+        html += '<div class="chart-card"><h3>月度趋势</h3><div class="echarts-container" id="dashTrend"></div></div>';
+        html += '<div class="chart-card"><h3>区域分布</h3><div class="echarts-container" id="dashRegion"></div></div>';
+        html += '<div class="chart-card" style="grid-column:span 2"><h3>TOP10 产品</h3><div class="echarts-container" id="dashProducts"></div></div>';
+    }
+    html += '</div>';
+
+    // Anomalies
+    if (r.anomalies && r.anomalies.details && r.anomalies.details.length > 0) {
+        html += '<div class="alert-card"><h3>⚠ 异常检测</h3><ul>';
+        r.anomalies.details.forEach(d => { html += `<li>${d.date}: 收入 ${formatNum(d.revenue)} (${d.deviation})</li>`; });
+        html += '</ul></div>';
+    }
+
+    // Narrative
+    if (r.narrative) {
+        html += `<div class="narrative-card"><h3>AI 经营分析</h3>${renderMd(r.narrative)}</div>`;
+    }
+
+    c.innerHTML = html;
+
+    // Render charts
+    if (r.charts) {
+        if (r.charts.trend) initDashChart('dashTrend', r.charts.trend);
+        if (r.charts.region) initDashChart('dashRegion', r.charts.region);
+        if (r.charts.top_products) initDashChart('dashProducts', r.charts.top_products);
+    }
+}
+
+function kpi(label, value, cls, sub) {
+    return `<div class="kpi-card ${cls}"><div class="kpi-label">${label}</div><div class="kpi-value">${formatNum(value)}</div><div class="kpi-sub">${sub}</div></div>`;
+}
+
+const _dashCharts = {};
+function initDashChart(id, config) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (_dashCharts[id]) _dashCharts[id].dispose();
+    _dashCharts[id] = echarts.init(el);
+    _dashCharts[id].setOption({
+        backgroundColor: 'transparent',
+        textStyle: { color: '#94a3b8' },
+        legend: { textStyle: { color: '#94a3b8' } },
+        tooltip: { backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#f1f5f9' } },
+        ...config,
+    });
+    window.addEventListener('resize', () => { if (_dashCharts[id]) _dashCharts[id].resize(); });
+}
+
+function renderMd(t) {
+    if (typeof marked !== 'undefined') { try { return marked.parse(t); } catch (e) {} }
+    return t.replace(/\n/g, '<br>');
+}
+
+// --- Explorer ---
+async function loadExplorer() {
+    const sidebar = document.getElementById('tableList');
+    sidebar.innerHTML = '<div class="loading">加载中...</div>';
+    try {
+        const res = await fetch('/api/tables');
+        const data = await res.json();
+        sidebar.innerHTML = '';
+        data.tables.forEach(t => {
+            const btn = document.createElement('button');
+            btn.className = 'table-item';
+            btn.innerHTML = `<span>${t.name}</span><span class="row-count">${t.row_count}</span>`;
+            btn.onclick = () => selectTable(t.name, btn);
+            sidebar.appendChild(btn);
+        });
+    } catch (e) {
+        sidebar.innerHTML = `<div class="loading">加载失败</div>`;
+    }
+}
+
+async function selectTable(name, btn) {
+    document.querySelectorAll('.table-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const main = document.getElementById('explorerMain');
+    main.innerHTML = '<div class="loading">加载中...</div>';
+
+    try {
+        const [schemaRes, dataRes] = await Promise.all([
+            fetch(`/api/dashboard/tables/${name}/schema`),
+            fetch(`/api/tables/${name}/data?page=1&page_size=50`),
+        ]);
+        const schema = await schemaRes.json();
+        const tableData = await dataRes.json();
+
+        let html = `<div class="explorer-table-info"><h2>${name}</h2>
+            <div class="column-grid">`;
+        schema.columns.forEach(col => {
+            const attrs = [];
+            if (col.primary_key) attrs.push('PK');
+            if (!col.nullable) attrs.push('NOT NULL');
+            html += `<div class="column-card"><div class="col-name">${col.name}</div><div class="col-type">${col.type}</div>${attrs.length ? `<div class="col-attrs">${attrs.join(' · ')}</div>` : ''}</div>`;
+        });
+        html += '</div></div>';
+
+        html += `<div style="margin-top:16px"><h3 style="font-size:14px;color:var(--text-secondary);margin-bottom:8px">数据预览 (${tableData.total} 行)</h3>`;
+        html += '<div class="table-container"><table><thead><tr>';
+        tableData.columns.forEach(col => { html += `<th>${col}</th>`; });
+        html += '</tr></thead><tbody>';
+        tableData.data.forEach(row => {
+            html += '<tr>';
+            tableData.columns.forEach(col => {
+                const v = row[col]; const isNum = typeof v === 'number';
+                html += `<td class="${isNum ? 'num' : ''}">${v === null ? '-' : escapeHtml(String(v))}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+
+        main.innerHTML = html;
+    } catch (e) {
+        main.innerHTML = `<div class="loading">加载失败: ${e.message}</div>`;
+    }
+}
+
+// --- Saved Queries ---
+async function loadSavedQueries() {
+    const c = document.getElementById('savedContent');
+    try {
+        const res = await fetch('/api/saved-queries');
+        const data = await res.json();
+        if (!data.queries || data.queries.length === 0) {
+            c.innerHTML = '<div class="explorer-empty">暂无保存的查询。在 AI 对话中点击"保存查询"添加。</div>';
+            return;
+        }
+        let html = '<div class="saved-grid">';
+        data.queries.forEach(q => {
+            html += `<div class="saved-card" onclick="runSavedQuery('${escapeHtml(q.sql)}','${escapeHtml(q.question)}')">
+                <h3>${escapeHtml(q.name)}</h3>
+                <div class="saved-question">${escapeHtml(q.question)}</div>
+                <div class="saved-sql">${escapeHtml(q.sql)}</div>
+                <div class="saved-actions">
+                    <button class="action-btn" onclick="event.stopPropagation();deleteSavedQuery(${q.id})">删除</button>
+                </div>
+            </div>`;
+        });
+        html += '</div>';
+        c.innerHTML = html;
+    } catch (e) {
+        c.innerHTML = `<div class="loading">加载失败</div>`;
+    }
+}
+
+function runSavedQuery(sql, question) {
+    navigate('chat');
+    document.getElementById('chatInput').value = question;
+    setTimeout(() => sendMessage(), 100);
+}
+
+async function deleteSavedQuery(id) {
+    await fetch(`/api/saved-queries/${id}`, { method: 'DELETE' });
+    loadSavedQueries();
 }
