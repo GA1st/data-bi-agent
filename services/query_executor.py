@@ -1,5 +1,7 @@
 import re
+import time
 from core.database import execute_query
+from services.query_audit import record_query
 
 MAX_ROWS = 5000
 # Keywords that indicate data modification — blocked for safety
@@ -45,8 +47,11 @@ def run_query(sql: str) -> dict:
     safe_sql = add_limit(sql)
 
     try:
+        t0 = time.monotonic()
         rows = execute_query(safe_sql)
+        elapsed_ms = (time.monotonic() - t0) * 1000
         columns = list(rows[0].keys()) if rows else []
+        record_query(safe_sql, success=True, row_count=len(rows), duration_ms=elapsed_ms, source="api")
         return {
             "success": True,
             "data": rows,
@@ -55,6 +60,7 @@ def run_query(sql: str) -> dict:
             "sql": safe_sql,
         }
     except Exception as e:
+        record_query(safe_sql, success=False, row_count=0, duration_ms=0, source="api")
         return {
             "success": False,
             "error": str(e),

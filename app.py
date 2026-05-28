@@ -10,11 +10,13 @@ from config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db, get_table_names
 from core.session import sessions
+from core.scheduler import start_scheduler, stop_scheduler
 from services.data_initializer import init_demo_data
 from api.chat import router as chat_router
 from api.dashboard import router as dashboard_router
 from api.database_manage import router as db_router
 from api.data_explorer import router as explorer_router
+from api.system import router as system_router
 
 
 @asynccontextmanager
@@ -39,9 +41,12 @@ async def lifespan(app: FastAPI):
     logger.info(f"Rate limit: {'enabled' if settings.rate_limit_enabled else 'disabled'}")
     logger.info(f"Cache: {'enabled' if settings.cache_enabled else 'disabled'}")
 
+    start_scheduler()
+
     yield
 
     logger.info("Shutting down...")
+    stop_scheduler()
     close_db()
 
 
@@ -80,6 +85,7 @@ app.include_router(chat_router)
 app.include_router(dashboard_router)
 app.include_router(db_router)
 app.include_router(explorer_router)
+app.include_router(system_router)
 
 static_dir = Path(__file__).parent / "static"
 if static_dir.exists():

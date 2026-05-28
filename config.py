@@ -42,6 +42,10 @@ class Settings(BaseSettings):
     context_max_tokens: int = 8000
     context_summary_threshold: int = 12
 
+    # Scheduler
+    scheduler_enabled: bool = True
+    scheduler_interval_seconds: int = 30
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 
