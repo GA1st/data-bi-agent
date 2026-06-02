@@ -1,8 +1,15 @@
 __pycache__/
 *.pyc
 .env
+.git/
+.venv/
+venv/
 *.db
 *.db-shm
 *.db-wal
-.git/
-.venv/
+*.db-journal
+*.log
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,7 +1,8 @@
 import json
+import re
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from agents.sql_agent import nl_to_sql, explain_result, fix_sql
 from agents.chart_agent import suggest_chart
@@ -20,16 +21,22 @@ _ctx = ContextManager(max_tokens=settings.context_max_tokens)
 
 
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, max_length=2000)
     enable_anomaly: bool = False
 
 
 class QuickQueryRequest(BaseModel):
-    question: str
+    question: str = Field(..., min_length=1, max_length=2000)
+
+
+_SESSION_RE = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
 
 
 def _resolve_session(x_session_id: str | None = Header(None, alias="X-Session-ID")) -> str:
-    return x_session_id or "default"
+    sid = x_session_id or "default"
+    if sid != "default" and not _SESSION_RE.match(sid):
+        raise HTTPException(400, "Invalid session ID format")
+    return sid
 
 
 def _sse(data: dict) -> str:

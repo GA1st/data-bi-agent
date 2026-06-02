@@ -9,7 +9,7 @@ from config import settings
 
 logger = get_logger(__name__)
 
-PUBLIC_PATHS = {"/", "/docs", "/openapi.json", "/redoc", "/docs/oauth2-redirect"}
+PUBLIC_PATHS = {"/", "/favicon.ico"}
 PUBLIC_PREFIXES = ("/static",)
 
 
@@ -26,13 +26,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
             return await call_next(request)
 
-        api_key = request.headers.get("X-API-Key") or request.query_params.get("api_key")
+        api_key = request.headers.get("X-API-Key")
 
         if not api_key:
             logger.warning(f"Auth failed: no key for {path}")
             return JSONResponse(
                 status_code=401,
                 content={"error": {"code": "AUTH_ERROR", "message": "API key required. Pass X-API-Key header."}},
+            )
+
+        if not settings.auth_api_key:
+            logger.error("Auth enabled but API key not configured")
+            return JSONResponse(
+                status_code=500,
+                content={"error": {"code": "AUTH_CONFIG_ERROR", "message": "Server auth misconfigured"}},
             )
 
         if not hmac.compare_digest(api_key, settings.auth_api_key):

@@ -24,7 +24,7 @@ def _get_conn() -> sqlite3.Connection:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA foreign_keys=ON")
         _local.conn = conn
-        logger.info(f"Database connection created: {db_path}")
+        logger.info("Database connection established")
     return conn
 
 

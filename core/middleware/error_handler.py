@@ -38,6 +38,8 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                 extra={"request_id": request_id},
             )
             msg = str(exc) if settings.debug else "Internal server error"
+            if not settings.debug:
+                logger.error(f"Masked error detail: {str(exc)[:200]}")
             return JSONResponse(
                 status_code=500,
                 content={

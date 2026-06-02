@@ -1,12 +1,16 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 from agents.report_agent import generate_report
-from core.database import get_table_names, get_table_columns, get_sample_data
+from core.database import get_table_names, get_table_columns, get_sample_data, _validate_identifier
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
+
+VALID_REPORT_TYPES = {"daily", "weekly", "monthly"}
 
 
 @router.get("/report")
 async def get_report(report_type: str = "daily"):
+    if report_type not in VALID_REPORT_TYPES:
+        raise HTTPException(400, f"Invalid report type. Valid: {VALID_REPORT_TYPES}")
     report = await generate_report(report_type)
     return report
 
@@ -19,6 +23,10 @@ async def list_tables():
 
 @router.get("/tables/{table_name}/schema")
 async def table_schema(table_name: str):
-    columns = get_table_columns(table_name)
-    samples = get_sample_data(table_name, 5)
+    try:
+        safe = _validate_identifier(table_name)
+    except Exception:
+        raise HTTPException(400, f"Invalid table name: {table_name}")
+    columns = get_table_columns(safe)
+    samples = get_sample_data(safe, 5)
     return {"columns": columns, "sample_data": samples}

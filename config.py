@@ -18,7 +18,13 @@ class Settings(BaseSettings):
     # App
     app_host: str = "0.0.0.0"
     app_port: int = 8000
-    debug: bool = True
+    debug: bool = False
+
+    # CORS
+    cors_origins: list[str] = ["*"]
+
+    # Trusted reverse proxy — only trust X-Forwarded-For from these IPs
+    trusted_proxies: list[str] = []
 
     # Auth
     auth_enabled: bool = False

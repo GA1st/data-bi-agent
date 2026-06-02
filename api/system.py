@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Query
 from pydantic import BaseModel
 
 from core.logger import get_logger
@@ -19,12 +19,12 @@ async def audit_stats():
 
 
 @router.get("/audit/recent")
-async def audit_recent(limit: int = 50):
+async def audit_recent(limit: int = Query(50, ge=1, le=200)):
     return {"entries": get_recent(limit)}
 
 
 @router.get("/audit/slow")
-async def audit_slow(threshold_ms: float = 2000, limit: int = 20):
+async def audit_slow(threshold_ms: float = Query(2000, ge=0), limit: int = Query(20, ge=1, le=200)):
     return {"entries": get_recent_slow(threshold_ms, limit)}
 
 

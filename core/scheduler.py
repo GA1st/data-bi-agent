@@ -16,19 +16,21 @@ from core.logger import get_logger
 
 logger = get_logger(__name__)
 
+_lock = threading.Lock()
 _jobs: list[dict] = []
 _running = False
 _thread: threading.Thread | None = None
 
 
 def register_job(name: str, func, interval_seconds: int, enabled: bool = True):
-    _jobs.append({
-        "name": name,
-        "func": func,
-        "interval": interval_seconds,
-        "enabled": enabled,
-        "last_run": 0,
-    })
+    with _lock:
+        _jobs.append({
+            "name": name,
+            "func": func,
+            "interval": interval_seconds,
+            "enabled": enabled,
+            "last_run": 0,
+        })
     logger.info(f"Scheduler job registered: {name} (every {interval_seconds}s)")
 
 
@@ -52,7 +54,9 @@ def stop_scheduler():
 def _scheduler_loop():
     while _running:
         now = time.time()
-        for job in _jobs:
+        with _lock:
+            snapshot = list(_jobs)
+        for job in snapshot:
             if not job["enabled"]:
                 continue
             if now - job["last_run"] >= job["interval"]:
@@ -66,15 +70,16 @@ def _scheduler_loop():
 
 
 def get_job_status() -> list[dict]:
-    return [
-        {
-            "name": j["name"],
-            "interval": j["interval"],
-            "enabled": j["enabled"],
-            "last_run": datetime.fromtimestamp(j["last_run"]).isoformat() if j["last_run"] else None,
-        }
-        for j in _jobs
-    ]
+    with _lock:
+        return [
+            {
+                "name": j["name"],
+                "interval": j["interval"],
+                "enabled": j["enabled"],
+                "last_run": datetime.fromtimestamp(j["last_run"]).isoformat() if j["last_run"] else None,
+            }
+            for j in _jobs
+        ]
 
 
 # --- Built-in Jobs ---

@@ -21,10 +21,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._lock = threading.Lock()
 
     def _client_key(self, request: Request) -> str:
-        forwarded = request.headers.get("X-Forwarded-For")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-        return request.client.host if request.client else "unknown"
+        client_ip = request.client.host if request.client else "unknown"
+        if settings.trusted_proxies:
+            forwarded = request.headers.get("X-Forwarded-For", "")
+            first_ip = forwarded.split(",")[0].strip() if forwarded else ""
+            if first_ip and client_ip in settings.trusted_proxies:
+                return first_ip
+        return client_ip
 
     def _is_limited(self, key: str) -> bool:
         now = time.monotonic()
@@ -43,7 +46,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         path = request.url.path
-        if path.startswith("/static") or path in ("/", "/docs", "/openapi.json", "/redoc"):
+        if path.startswith("/static") or path in ("/", "/favicon.ico"):
             return await call_next(request)
 
         key = self._client_key(request)

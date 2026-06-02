@@ -36,11 +36,13 @@ def test(name):
 def test_config_defaults():
     from config import settings
     assert settings.app_port == 8000
-    assert settings.debug is True
+    assert isinstance(settings.debug, bool)
     assert settings.llm_model == "gpt-4"
     assert settings.llm_model_small == "gpt-4o-mini"
     assert settings.cache_enabled is True
     assert settings.auth_enabled is False
+    assert isinstance(settings.cors_origins, list)
+    assert isinstance(settings.trusted_proxies, list)
 
 
 @test("config: context settings present")
