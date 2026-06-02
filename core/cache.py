@@ -8,6 +8,10 @@ from config import settings
 
 logger = get_logger(__name__)
 
+_hits = 0
+_misses = 0
+_stats_lock = threading.Lock()
+
 
 class TTLCache:
     def __init__(self, ttl: int | None = None, max_size: int | None = None):
@@ -17,16 +21,23 @@ class TTLCache:
         self._lock = threading.Lock()
 
     def get(self, key: str) -> Any | None:
+        global _hits, _misses
         if not settings.cache_enabled:
             return None
         with self._lock:
             entry = self._store.get(key)
             if entry is None:
+                with _stats_lock:
+                    _misses += 1
                 return None
             value, expires_at = entry
             if time.monotonic() > expires_at:
                 del self._store[key]
+                with _stats_lock:
+                    _misses += 1
                 return None
+            with _stats_lock:
+                _hits += 1
             return value
 
     def set(self, key: str, value: Any) -> None:

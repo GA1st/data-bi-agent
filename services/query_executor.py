@@ -1,6 +1,7 @@
 import re
 import time
 from core.database import execute_query
+from core.metrics import metrics
 from services.query_audit import record_query
 
 MAX_ROWS = 5000
@@ -42,6 +43,7 @@ def add_limit(sql: str, limit: int = MAX_ROWS) -> str:
 def run_query(sql: str) -> dict:
     valid, msg = validate_sql(sql)
     if not valid:
+        metrics.inc_counter("queries_total", labels={"status": "rejected"})
         return {"success": False, "error": msg, "data": [], "columns": [], "row_count": 0}
 
     safe_sql = add_limit(sql)
@@ -52,6 +54,8 @@ def run_query(sql: str) -> dict:
         elapsed_ms = (time.monotonic() - t0) * 1000
         columns = list(rows[0].keys()) if rows else []
         record_query(safe_sql, success=True, row_count=len(rows), duration_ms=elapsed_ms, source="api")
+        metrics.inc_counter("queries_total", labels={"status": "success"})
+        metrics.observe_histogram("query_duration_ms", elapsed_ms)
         return {
             "success": True,
             "data": rows,
@@ -61,6 +65,7 @@ def run_query(sql: str) -> dict:
         }
     except Exception as e:
         record_query(safe_sql, success=False, row_count=0, duration_ms=0, source="api")
+        metrics.inc_counter("queries_total", labels={"status": "error"})
         return {
             "success": False,
             "error": str(e),

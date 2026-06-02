@@ -5,6 +5,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
 from core.logger import get_logger
+from core.metrics import metrics
 
 logger = get_logger("request")
 
@@ -27,6 +28,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             f"<-- {request.method} {request.url.path} {response.status_code} {elapsed_ms:.1f}ms",
             extra={"request_id": request_id},
         )
+
+        metrics.inc_counter("http_requests_total", labels={"method": request.method, "status": str(response.status_code)})
+        metrics.observe_histogram("http_request_duration_ms", elapsed_ms, labels={"method": request.method, "path": request.url.path})
 
         response.headers["X-Request-ID"] = request_id
         response.headers["X-Response-Time"] = f"{elapsed_ms:.1f}ms"
