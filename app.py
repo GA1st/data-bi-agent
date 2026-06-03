@@ -10,6 +10,7 @@ from config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db, get_table_names
 from core.scheduler import start_scheduler, stop_scheduler
+from core.migrate import run_migrations
 from services.data_initializer import init_demo_data
 from api.chat import router as chat_router
 from api.dashboard import router as dashboard_router
@@ -25,6 +26,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("Initializing database...")
     init_db()
+    run_migrations()
 
     logger.info("Loading demo data...")
     created = init_demo_data()

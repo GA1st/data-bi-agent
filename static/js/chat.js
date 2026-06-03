@@ -152,5 +152,11 @@ function showChart(config) {
     };
     currentChart = echarts.init(document.getElementById('chartContainer'));
     currentChart.setOption(darkConfig);
-    window.addEventListener('resize', () => { if (currentChart) currentChart.resize(); });
+    if (!window._chartResizeHandler) {
+        window._chartResizeHandler = () => {
+            if (currentChart) currentChart.resize();
+            Object.values(_dashCharts).forEach(c => { if (c) c.resize(); });
+        };
+        window.addEventListener('resize', window._chartResizeHandler);
+    }
 }

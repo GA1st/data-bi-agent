@@ -75,7 +75,6 @@ function initDashChart(id, config) {
         tooltip: { backgroundColor: '#1e293b', borderColor: '#334155', textStyle: { color: '#f1f5f9' } },
         ...config,
     });
-    window.addEventListener('resize', () => { if (_dashCharts[id]) _dashCharts[id].resize(); });
 }
 
 // --- Explorer ---
