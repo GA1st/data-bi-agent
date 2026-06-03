@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install ruff
-      - run: ruff check . --ignore E501,F401 --select E,F,W
+      - run: ruff check . --ignore E501 --select E,F,W,I,UP,B,SIM
 
   test:
     runs-on: ubuntu-latest
@@ -37,6 +37,12 @@ jobs:
       - name: Smoke test
         run: |
           docker run -d --name bi-test -p 8000:8000 data-bi-agent:ci
-          sleep 5
-          curl -sf http://localhost:8000/ | head -c 100
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/ > /dev/null 2>&1; then
+              echo "App is up after ${i}x2s"
+              break
+            fi
+            sleep 2
+          done
+          curl -sf http://localhost:8000/ | head -c 100 || (docker logs bi-test && exit 1)
           docker stop bi-test

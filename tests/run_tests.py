@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 passed = 0
 failed = 0
 errors = []
+_test_registry: list = []
 
 
 def test(name):
@@ -25,6 +26,7 @@ def test(name):
                 errors.append((name, str(e)))
                 print(f"  FAIL  {name}: {e}")
         wrapper._name = name
+        _test_registry.append(wrapper)
         return wrapper
     return decorator
 
@@ -436,13 +438,9 @@ def run_all():
     print("Data BI Agent — Test Suite")
     print("=" * 60)
 
-    # Collect all test functions from this module
-    current_module = sys.modules[__name__]
-    tests = [getattr(current_module, name) for name in dir(current_module)
-             if callable(getattr(current_module, name)) and hasattr(getattr(current_module, name), '_name')]
-
+    # Run tests in definition order (not alphabetical)
     start = time.time()
-    for t in tests:
+    for t in _test_registry:
         t()
     elapsed = time.time() - start
 
