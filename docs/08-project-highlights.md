@@ -135,3 +135,4 @@ data_bi_agent/
 | [07-sse-frontend](07-sse-frontend.md) | SSE 流式 + 前端架构 |
 | [08-project-highlights](08-project-highlights.md) | 项目亮点 + 追问题库 |
 | [09-distributed-evolution](09-distributed-evolution.md) | 分布式架构演进 |
+| [10-architecture-retrospective](10-architecture-retrospective.md) | 架构反思：不足与改进 |
