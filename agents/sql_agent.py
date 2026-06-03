@@ -1,7 +1,7 @@
 import json
 from core.llm import chat_json, chat
 from core.database import get_full_schema
-from core.context import ContextManager, summarize_history
+from core.context import ContextManager
 from config import settings
 
 SYSTEM_PROMPT = """你是一个专业的数据分析师和SQL专家。你的任务是将用户的自然语言问题转换为准确的SQL查询。

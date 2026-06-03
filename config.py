@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     llm_auto_downgrade: bool = True  # auto use small model for simple tasks
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///data/demo.db"
+    database_url: str = "sqlite:///data/demo.db"
 
     # App
     app_host: str = "0.0.0.0"

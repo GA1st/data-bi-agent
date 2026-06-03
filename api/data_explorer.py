@@ -1,4 +1,3 @@
-import json
 import threading
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field

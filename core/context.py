@@ -12,12 +12,9 @@ def estimate_tokens(text: str) -> int:
     if not text:
         return 0
     chinese_chars = len(_CHINESE_RE.findall(text))
-    remaining = text
-    for _ in range(chinese_chars):
-        remaining = remaining.replace(_CHINESE_RE.pattern, '', 1)
     remaining = re.sub(r'[一-鿿]', '', text)
     english_words = len(remaining.split())
-    return chinese_chars * 2 + int(english_words * 1.3) + 10  # +10 overhead
+    return chinese_chars * 2 + int(english_words * 1.3) + 10
 
 
 def _messages_tokens(messages: list[dict]) -> int:

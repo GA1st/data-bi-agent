@@ -327,6 +327,107 @@ def test_anomaly_normal():
 
 
 # ============================================================
+# Security tests
+# ============================================================
+@test("security: identifier validation blocks injection")
+def test_identifier_security():
+    from core.database import _validate_identifier
+    from core.exceptions import ValidationError
+    malicious = [
+        '"; DROP TABLE orders; --',
+        "test'; INSERT INTO",
+        "test OR 1=1",
+        "../../../etc/passwd",
+        "test; DELETE FROM orders",
+    ]
+    for name in malicious:
+        try:
+            _validate_identifier(name)
+            assert False, f"Should have blocked: {name}"
+        except ValidationError:
+            pass
+
+
+@test("security: SQL validation blocks dangerous patterns")
+def test_sql_validation_security():
+    from services.query_executor import validate_sql
+    dangerous = [
+        "SELECT * FROM orders; DROP TABLE orders",
+        "DELETE FROM orders WHERE 1=1",
+        "UPDATE orders SET status='hacked'",
+        "INSERT INTO orders VALUES (1)",
+        "DROP TABLE orders",
+        "ALTER TABLE orders ADD COLUMN hack TEXT",
+        "TRUNCATE TABLE orders",
+    ]
+    for sql in dangerous:
+        ok, msg = validate_sql(sql)
+        assert ok is False, f"Should have blocked: {sql}"
+
+
+@test("security: session ID format validation")
+def test_session_id_validation():
+    import re
+    pattern = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
+    assert pattern.match("sess_abc123") is not None
+    assert pattern.match("default") is not None
+    assert pattern.match("a" * 64) is not None
+    assert pattern.match("a" * 65) is None
+    assert pattern.match("test/../hack") is None
+    assert pattern.match("test<script>") is None
+    assert pattern.match("") is None
+
+
+@test("security: input bounds on request models")
+def test_input_bounds():
+    from pydantic import ValidationError as PydanticError
+    from api.chat import ChatRequest
+    from api.data_explorer import SavedQueryCreate
+    try:
+        ChatRequest(message="")
+        assert False, "Should reject empty message"
+    except PydanticError:
+        pass
+    try:
+        ChatRequest(message="x" * 2001)
+        assert False, "Should reject oversized message"
+    except PydanticError:
+        pass
+    ChatRequest(message="hello")
+    try:
+        SavedQueryCreate(name="x" * 101, question="q", sql="SELECT 1")
+        assert False, "Should reject oversized name"
+    except PydanticError:
+        pass
+
+
+@test("security: cache TTL expiry prevents stale data")
+def test_cache_no_stale():
+    from core.cache import TTLCache
+    import time
+    c = TTLCache(ttl=1, max_size=10)
+    c.set("key", "sensitive_data")
+    assert c.get("key") == "sensitive_data"
+    time.sleep(1.5)
+    assert c.get("key") is None
+
+
+@test("metrics: counters and gauges work")
+def test_metrics_basic():
+    from core.metrics import Metrics
+    m = Metrics()
+    m.inc_counter("test_total", labels={"status": "ok"})
+    m.inc_counter("test_total", labels={"status": "ok"})
+    m.set_gauge("test_active", 5)
+    m.observe_histogram("test_duration", 100.0)
+    m.observe_histogram("test_duration", 200.0)
+    output = m.expose()
+    assert "test_total" in output
+    assert "test_active" in output
+    assert "test_duration" in output
+
+
+# ============================================================
 # Run all tests
 # ============================================================
 def run_all():

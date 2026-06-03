@@ -8,14 +8,6 @@ logger = get_logger(__name__)
 
 _client: AsyncOpenAI | None = None
 
-# Task type -> model selection
-# heavy: NL→SQL, report narrative (needs deep reasoning)
-# light: SQL fix, chart config, result explanation (pattern matching)
-TASK_MODELS = {
-    "heavy": None,   # uses settings.llm_model
-    "light": None,   # uses settings.llm_model_small
-}
-
 
 def get_client() -> AsyncOpenAI:
     global _client

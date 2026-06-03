@@ -78,11 +78,6 @@ function initDashChart(id, config) {
     window.addEventListener('resize', () => { if (_dashCharts[id]) _dashCharts[id].resize(); });
 }
 
-function renderMd(t) {
-    if (typeof marked !== 'undefined') { try { return marked.parse(t); } catch (e) {} }
-    return t.replace(/\n/g, '<br>');
-}
-
 // --- Explorer ---
 async function loadExplorer() {
     const sidebar = document.getElementById('tableList');
@@ -159,17 +154,32 @@ async function loadSavedQueries() {
         }
         let html = '<div class="saved-grid">';
         data.queries.forEach(q => {
-            html += `<div class="saved-card" onclick="runSavedQuery('${escapeHtml(q.sql)}','${escapeHtml(q.question)}')">
+            const safeId = q.id;
+            html += `<div class="saved-card" data-query-id="${safeId}">
                 <h3>${escapeHtml(q.name)}</h3>
                 <div class="saved-question">${escapeHtml(q.question)}</div>
                 <div class="saved-sql">${escapeHtml(q.sql)}</div>
                 <div class="saved-actions">
-                    <button class="action-btn" onclick="event.stopPropagation();deleteSavedQuery(${q.id})">删除</button>
+                    <button class="action-btn delete-btn" data-id="${safeId}">删除</button>
                 </div>
             </div>`;
         });
         html += '</div>';
         c.innerHTML = html;
+        // Event delegation for saved queries
+        c.querySelectorAll('.saved-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const id = card.dataset.queryId;
+                const q = data.queries.find(q => q.id == id);
+                if (q) runSavedQuery(q.sql, q.question);
+            });
+        });
+        c.querySelectorAll('.delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                deleteSavedQuery(parseInt(btn.dataset.id));
+            });
+        });
     } catch (e) {
         c.innerHTML = `<div class="loading">加载失败</div>`;
     }
@@ -182,6 +192,11 @@ function runSavedQuery(sql, question) {
 }
 
 async function deleteSavedQuery(id) {
-    await fetch(`/api/saved-queries/${id}`, { method: 'DELETE' });
+    try {
+        const res = await fetch(`/api/saved-queries/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('删除失败');
+    } catch (e) {
+        alert('删除失败: ' + e.message);
+    }
     loadSavedQueries();
 }

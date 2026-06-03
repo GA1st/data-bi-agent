@@ -17,7 +17,7 @@ _SCHEMA_CACHE_KEY = "db_full_schema"
 def _get_conn() -> sqlite3.Connection:
     conn = getattr(_local, "conn", None)
     if conn is None:
-        db_path = _db_path or settings.database_url.replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+        db_path = _db_path or settings.database_url.replace("sqlite:///", "")
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(db_path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
@@ -37,7 +37,7 @@ def _validate_identifier(name: str) -> str:
 def init_db(db_url: str | None = None):
     global _db_path
     if db_url:
-        _db_path = db_url.replace("sqlite+aiosqlite:///", "").replace("sqlite:///", "")
+        _db_path = db_url.replace("sqlite:///", "")
     from core.cache import cache
     cache.delete(_SCHEMA_CACHE_KEY)
     _get_conn()

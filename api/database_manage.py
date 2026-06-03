@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from core.database import init_db, execute_query, get_table_names, get_full_schema, close_db
+from core.database import init_db, execute_query, get_table_names, get_full_schema, close_db, _validate_identifier
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +22,8 @@ async def database_status():
         tables = get_table_names()
         table_stats = []
         for t in tables:
-            count_result = execute_query(f"SELECT COUNT(*) as cnt FROM \"{t}\"")
+            safe = _validate_identifier(t)
+            count_result = execute_query(f'SELECT COUNT(*) as cnt FROM "{safe}"')
             count = count_result[0]["cnt"] if count_result else 0
             table_stats.append({"name": t, "rows": count})
         return {"connected": True, "tables": table_stats}

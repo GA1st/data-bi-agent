@@ -9,7 +9,6 @@ from fastapi.responses import FileResponse
 from config import settings
 from core.logger import setup_logging, get_logger
 from core.database import init_db, close_db, get_table_names
-from core.session import sessions
 from core.scheduler import start_scheduler, stop_scheduler
 from services.data_initializer import init_demo_data
 from api.chat import router as chat_router
@@ -47,6 +46,8 @@ async def lifespan(app: FastAPI):
 
     logger.info("Shutting down...")
     stop_scheduler()
+    from services.query_audit import flush as flush_audit
+    flush_audit()
     close_db()
 
 
