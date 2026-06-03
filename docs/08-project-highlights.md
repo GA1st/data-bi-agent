@@ -120,3 +120,18 @@ data_bi_agent/
 ├── docker-compose.yml
 └── .github/workflows/ci.yml  # CI/CD pipeline
 ```
+
+## 面试文档索引
+
+| 文档 | 主题 |
+|------|------|
+| [00-architecture](00-architecture.md) | 架构总览 + 数据流 |
+| [01-middleware-security](01-middleware-security.md) | 中间件栈 + SQL 注入防护 |
+| [02-nl2sql-agent](02-nl2sql-agent.md) | NL→SQL + prompt 工程 |
+| [03-database-caching-session](03-database-caching-session.md) | 数据库 + 缓存 + 会话 |
+| [04-visualization-anomaly-report](04-visualization-anomaly-report.md) | 图表 + 异常检测 + 报表 |
+| [05-scheduler-audit-metrics](05-scheduler-audit-metrics.md) | 定时任务 + 审计 + 可观测性 |
+| [06-ci-docker](06-ci-docker.md) | CI/CD + Docker 部署 |
+| [07-sse-frontend](07-sse-frontend.md) | SSE 流式 + 前端架构 |
+| [08-project-highlights](08-project-highlights.md) | 项目亮点 + 追问题库 |
+| [09-distributed-evolution](09-distributed-evolution.md) | 分布式架构演进 |
