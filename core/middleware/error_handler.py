@@ -1,6 +1,5 @@
 import traceback
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -11,18 +10,28 @@ from config import settings
 logger = get_logger(__name__)
 
 
-class ErrorHandlerMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        request_id = getattr(request.state, "request_id", "")
+class ErrorHandlerMiddleware:
+    """Pure ASGI middleware — does not buffer StreamingResponse."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        request_id = ""
         try:
-            response = await call_next(request)
-            return response
+            await self.app(scope, receive, send)
         except AppError as exc:
+            request_id = getattr(request.state, "request_id", "")
             logger.warning(
                 f"AppError: {exc.error_code} - {exc.detail}",
                 extra={"request_id": request_id},
             )
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=exc.status_code,
                 content={
                     "error": {
@@ -32,7 +41,9 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                     "request_id": request_id,
                 },
             )
+            await response(scope, receive, send)
         except Exception as exc:
+            request_id = getattr(request.state, "request_id", "")
             logger.error(
                 f"Unhandled exception: {traceback.format_exc()}",
                 extra={"request_id": request_id},
@@ -40,7 +51,7 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
             msg = str(exc) if settings.debug else "Internal server error"
             if not settings.debug:
                 logger.error(f"Masked error detail: {str(exc)[:200]}")
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=500,
                 content={
                     "error": {
@@ -50,3 +61,4 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
                     "request_id": request_id,
                 },
             )
+            await response(scope, receive, send)

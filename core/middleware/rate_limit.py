@@ -2,7 +2,6 @@ import time
 import threading
 from collections import defaultdict, deque
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -12,13 +11,47 @@ from config import settings
 logger = get_logger(__name__)
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
+class RateLimitMiddleware:
+    """Pure ASGI middleware — does not buffer StreamingResponse."""
+
     def __init__(self, app):
-        super().__init__(app)
+        self.app = app
         self.max_requests = settings.rate_limit_max_requests
         self.window_seconds = settings.rate_limit_window_seconds
         self._requests: defaultdict[str, deque] = defaultdict(deque)
         self._lock = threading.Lock()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        if not settings.rate_limit_enabled:
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
+        path = request.url.path
+        if path.startswith("/static") or path in ("/", "/favicon.ico"):
+            await self.app(scope, receive, send)
+            return
+
+        key = self._client_key(request)
+        if self._is_limited(key):
+            logger.warning(f"Rate limited: {key} on {path}")
+            response = JSONResponse(
+                status_code=429,
+                content={
+                    "error": {
+                        "code": "RATE_LIMITED",
+                        "message": f"Too many requests. Limit: {self.max_requests}/{self.window_seconds}s",
+                    }
+                },
+            )
+            await response(scope, receive, send)
+            return
+
+        await self.app(scope, receive, send)
 
     def _client_key(self, request: Request) -> str:
         client_ip = request.client.host if request.client else "unknown"
@@ -40,25 +73,3 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return True
             q.append(now)
             return False
-
-    async def dispatch(self, request: Request, call_next):
-        if not settings.rate_limit_enabled:
-            return await call_next(request)
-
-        path = request.url.path
-        if path.startswith("/static") or path in ("/", "/favicon.ico"):
-            return await call_next(request)
-
-        key = self._client_key(request)
-        if self._is_limited(key):
-            logger.warning(f"Rate limited: {key} on {path}")
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "error": {
-                        "code": "RATE_LIMITED",
-                        "message": f"Too many requests. Limit: {self.max_requests}/{self.window_seconds}s",
-                    }
-                },
-            )
-        return await call_next(request)

@@ -1,6 +1,4 @@
 import hmac
-
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
@@ -13,40 +11,59 @@ PUBLIC_PATHS = {"/", "/favicon.ico"}
 PUBLIC_PREFIXES = ("/static",)
 
 
-class AuthMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
+class AuthMiddleware:
+    """Pure ASGI middleware — does not buffer StreamingResponse."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        request = Request(scope, receive)
         if not settings.auth_enabled:
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
         path = request.url.path
 
         if request.method == "OPTIONS":
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
         if path in PUBLIC_PATHS or any(path.startswith(p) for p in PUBLIC_PREFIXES):
-            return await call_next(request)
+            await self.app(scope, receive, send)
+            return
 
         api_key = request.headers.get("X-API-Key")
 
         if not api_key:
             logger.warning(f"Auth failed: no key for {path}")
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=401,
                 content={"error": {"code": "AUTH_ERROR", "message": "API key required. Pass X-API-Key header."}},
             )
+            await response(scope, receive, send)
+            return
 
         if not settings.auth_api_key:
             logger.error("Auth enabled but API key not configured")
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=500,
                 content={"error": {"code": "AUTH_CONFIG_ERROR", "message": "Server auth misconfigured"}},
             )
+            await response(scope, receive, send)
+            return
 
         if not hmac.compare_digest(api_key, settings.auth_api_key):
             logger.warning(f"Auth failed: invalid key for {path}")
-            return JSONResponse(
+            response = JSONResponse(
                 status_code=401,
                 content={"error": {"code": "AUTH_ERROR", "message": "Invalid API key"}},
             )
+            await response(scope, receive, send)
+            return
 
-        return await call_next(request)
+        await self.app(scope, receive, send)

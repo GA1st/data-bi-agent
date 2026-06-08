@@ -9,6 +9,7 @@ Supports:
 import csv
 import io
 import os
+import uuid
 from pathlib import Path
 
 from core.logger import get_logger
@@ -74,7 +75,8 @@ def import_csv_to_table(csv_path: str, table_name: str | None = None, delimiter:
 
 def import_csv_bytes(filename: str, content: bytes, delimiter: str = ",") -> dict:
     """Import CSV from uploaded bytes (used by API)."""
-    table_name = Path(filename).stem.replace("-", "_").replace(" ", "_")
+    base_name = Path(filename).stem.replace("-", "_").replace(" ", "_")
+    table_name = f"{base_name}_{uuid.uuid4().hex[:6]}"
     text = content.decode("utf-8-sig")
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
     headers = next(reader)

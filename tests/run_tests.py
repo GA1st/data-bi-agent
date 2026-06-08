@@ -213,7 +213,9 @@ def test_session_summary():
 @test("database: init and query")
 def test_database_basic():
     from core.database import init_db, execute_query, execute_update, get_table_names
+    from services.data_initializer import init_demo_data
     init_db()
+    init_demo_data()
     tables = get_table_names()
     assert len(tables) > 0
     rows = execute_query("SELECT COUNT(*) as cnt FROM orders")

@@ -12,6 +12,8 @@ _client: AsyncOpenAI | None = None
 def get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
+        if not settings.llm_api_key:
+            raise LLMError("LLM API key not configured. Set LLM_API_KEY in .env")
         _client = AsyncOpenAI(
             base_url=settings.llm_api_base,
             api_key=settings.llm_api_key,

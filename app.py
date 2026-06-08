@@ -103,6 +103,15 @@ async def index():
     return {"message": "Data BI Agent API", "docs": "/docs"}
 
 
+# SPA catch-all: serve index.html for client-side routes (dashboard, chat, etc.)
+@app.get("/{path:path}")
+async def spa_fallback():
+    index_file = Path(__file__).parent / "static" / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    return {"message": "Data BI Agent API", "docs": "/docs"}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
