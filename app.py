@@ -3,20 +3,20 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
-from config import settings
-from core.logger import setup_logging, get_logger
-from core.database import init_db, close_db, get_table_names
-from core.scheduler import start_scheduler, stop_scheduler
-from core.migrate import run_migrations
-from services.data_initializer import init_demo_data
 from api.chat import router as chat_router
 from api.dashboard import router as dashboard_router
-from api.database_manage import router as db_router
 from api.data_explorer import router as explorer_router
+from api.database_manage import router as db_router
 from api.system import router as system_router
+from config import settings
+from core.database import close_db, get_table_names, init_db
+from core.logger import get_logger, setup_logging
+from core.migrate import run_migrations
+from core.scheduler import start_scheduler, stop_scheduler
+from services.data_initializer import init_demo_data
 
 
 @asynccontextmanager
@@ -65,17 +65,17 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True if settings.cors_origins != ["*"] else False,
+    allow_credentials=settings.cors_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-from core.middleware import (
-    SecurityHeadersMiddleware,
+from core.middleware import (  # noqa: E402
     AuthMiddleware,
+    ErrorHandlerMiddleware,
     RateLimitMiddleware,
     RequestLoggingMiddleware,
-    ErrorHandlerMiddleware,
+    SecurityHeadersMiddleware,
 )
 
 app.add_middleware(ErrorHandlerMiddleware)

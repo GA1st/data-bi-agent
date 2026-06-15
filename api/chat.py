@@ -1,17 +1,18 @@
 import json
 import re
+
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from agents.sql_agent import nl_to_sql, explain_result, fix_sql
-from agents.chart_agent import suggest_chart
 from agents.anomaly_agent import detect_anomalies
-from services.query_executor import run_query
-from core.session import sessions
-from core.context import ContextManager, summarize_history
+from agents.chart_agent import suggest_chart
+from agents.sql_agent import explain_result, fix_sql, nl_to_sql
 from config import settings
+from core.context import ContextManager, summarize_history
 from core.logger import get_logger
+from core.session import sessions
+from services.query_executor import run_query
 
 logger = get_logger(__name__)
 

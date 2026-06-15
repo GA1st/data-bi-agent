@@ -3,9 +3,9 @@ import traceback
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
+from config import settings
 from core.exceptions import AppError
 from core.logger import get_logger
-from config import settings
 
 logger = get_logger(__name__)
 

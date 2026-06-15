@@ -8,13 +8,12 @@ Supports:
 """
 import csv
 import io
-import os
 import uuid
 from pathlib import Path
 
-from core.logger import get_logger
-from core.database import execute_update, execute_query, _validate_identifier
+from core.database import _validate_identifier, execute_query, execute_update
 from core.exceptions import ValidationError
+from core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -29,7 +28,7 @@ def import_csv_to_table(csv_path: str, table_name: str | None = None, delimiter:
         table_name = path.stem.replace("-", "_").replace(" ", "_")
     table_name = _validate_identifier(table_name)
 
-    with open(path, "r", encoding="utf-8-sig") as f:
+    with open(path, encoding="utf-8-sig") as f:
         reader = csv.reader(f, delimiter=delimiter)
         headers = next(reader)
         rows = list(reader)

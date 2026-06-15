@@ -1,14 +1,13 @@
-from fastapi import APIRouter, UploadFile, File, HTTPException, Query
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel
 
+from core.cache import _hits, _misses, _stats_lock
 from core.logger import get_logger
 from core.metrics import metrics
-from core.cache import _hits, _misses, _stats_lock
-from core.session import sessions
 from core.scheduler import get_job_status
-from services.query_audit import get_stats, get_recent, get_recent_slow
+from core.session import sessions
 from services.multi_datasource import import_csv_bytes, list_datasources
+from services.query_audit import get_recent, get_recent_slow, get_stats
 
 logger = get_logger(__name__)
 
@@ -47,7 +46,7 @@ async def datasources():
 
 
 @router.post("/upload/csv")
-async def upload_csv(file: UploadFile = File(...)):
+async def upload_csv(file: UploadFile = File(...)):  # noqa: B008
     if not file.filename.endswith((".csv", ".tsv")):
         raise HTTPException(400, "仅支持 CSV/TSV 文件")
     content = await file.read()
@@ -59,7 +58,7 @@ async def upload_csv(file: UploadFile = File(...)):
         logger.info(f"CSV uploaded: {result['table_name']} ({result['rows']} rows)")
         return result
     except Exception as e:
-        raise HTTPException(400, str(e))
+        raise HTTPException(400, str(e)) from e
 
 
 # --- Metrics ---

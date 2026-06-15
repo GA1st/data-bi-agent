@@ -1,7 +1,7 @@
 import random
 from datetime import datetime, timedelta
 
-from core.database import execute_update, execute_query
+from core.database import execute_query, execute_update
 
 CATEGORIES = [
     ("电子产品", "手机、电脑、平板等电子设备"),
@@ -160,7 +160,7 @@ def _seed_categories():
 def _seed_products():
     for cat_id, (cat_name, _) in enumerate(CATEGORIES, 1):
         names = PRODUCT_NAMES[cat_name]
-        for i, pname in enumerate(names):
+        for _i, pname in enumerate(names):
             base_price = random.uniform(20, 5000)
             cost_ratio = random.uniform(0.3, 0.7)
             stock = random.randint(0, 2000)
@@ -205,7 +205,7 @@ def _seed_customers():
 
 
 def _seed_employees():
-    for i in range(20):
+    for _i in range(20):
         region = random.choice(REGIONS)
         dept = random.choice(DEPARTMENTS)
         pos = random.choice(POSITIONS)

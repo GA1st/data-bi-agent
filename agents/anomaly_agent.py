@@ -1,6 +1,8 @@
-import numpy as np
-from core.llm import chat
 import json
+
+import numpy as np
+
+from core.llm import chat
 
 
 def detect_anomalies(data: list[dict], columns: list[str]) -> dict:

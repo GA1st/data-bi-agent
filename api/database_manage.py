@@ -1,6 +1,12 @@
 from fastapi import APIRouter
 
-from core.database import init_db, execute_query, get_table_names, get_full_schema, close_db, _validate_identifier
+from core.database import (
+    _validate_identifier,
+    execute_query,
+    get_full_schema,
+    get_table_names,
+    init_db,
+)
 from core.logger import get_logger
 
 logger = get_logger(__name__)

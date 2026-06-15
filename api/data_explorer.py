@@ -1,7 +1,14 @@
 import threading
+
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
-from core.database import execute_query, get_table_names, get_table_columns, get_sample_data, _validate_identifier
+
+from core.database import (
+    _validate_identifier,
+    execute_query,
+    get_table_columns,
+    get_table_names,
+)
 from core.logger import get_logger
 
 logger = get_logger(__name__)
@@ -56,7 +63,7 @@ def _safe_table(name: str) -> str:
     try:
         return _validate_identifier(name)
     except Exception:
-        raise HTTPException(400, f"Invalid table name: {name}")
+        raise HTTPException(400, f"Invalid table name: {name}") from None
 
 
 # --- Data Explorer ---

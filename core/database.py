@@ -4,8 +4,8 @@ import threading
 from pathlib import Path
 
 from config import settings
-from core.logger import get_logger
 from core.exceptions import DatabaseError, ValidationError
+from core.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -49,7 +49,7 @@ def execute_query(sql: str, params: dict | None = None) -> list[dict]:
         cursor = conn.execute(sql, params or {})
         rows = cursor.fetchall()
         columns = [desc[0] for desc in cursor.description] if cursor.description else []
-        return [dict(zip(columns, row)) for row in rows]
+        return [dict(zip(columns, row, strict=False)) for row in rows]
     except Exception as e:
         logger.error(f"Query error: {e}")
         raise DatabaseError(str(e)) from e

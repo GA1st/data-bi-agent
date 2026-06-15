@@ -3,11 +3,8 @@ Query audit log — records all executed queries with timing and metadata.
 Persists to SQLite table 'query_audit_log'.
 """
 import threading
-import time
-from datetime import datetime
 
 from core.logger import get_logger
-from core.exceptions import DatabaseError
 
 logger = get_logger(__name__)
 

@@ -1,6 +1,12 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException
+
 from agents.report_agent import generate_report
-from core.database import get_table_names, get_table_columns, get_sample_data, _validate_identifier
+from core.database import (
+    _validate_identifier,
+    get_sample_data,
+    get_table_columns,
+    get_table_names,
+)
 
 router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 
@@ -26,7 +32,7 @@ async def table_schema(table_name: str):
     try:
         safe = _validate_identifier(table_name)
     except Exception:
-        raise HTTPException(400, f"Invalid table name: {table_name}")
+        raise HTTPException(400, f"Invalid table name: {table_name}") from None
     columns = get_table_columns(safe)
     samples = get_sample_data(safe, 5)
     return {"columns": columns, "sample_data": samples}

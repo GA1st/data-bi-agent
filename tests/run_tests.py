@@ -1,9 +1,7 @@
 """Test suite for Data BI Agent — run with: python tests/run_tests.py"""
-import sys
 import os
-import json
+import sys
 import time
-import traceback
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -59,7 +57,7 @@ def test_config_context():
 # ============================================================
 @test("exceptions: hierarchy works")
 def test_exceptions():
-    from core.exceptions import AppError, DatabaseError, ValidationError, AuthError
+    from core.exceptions import AppError, DatabaseError, ValidationError
     try:
         raise DatabaseError("db broken")
     except AppError as e:
@@ -78,7 +76,7 @@ def test_exceptions():
 # ============================================================
 @test("logger: setup and get_logger")
 def test_logger():
-    from core.logger import setup_logging, get_logger
+    from core.logger import get_logger, setup_logging
     setup_logging()
     logger = get_logger("test")
     assert logger is not None
@@ -212,7 +210,7 @@ def test_session_summary():
 # ============================================================
 @test("database: init and query")
 def test_database_basic():
-    from core.database import init_db, execute_query, execute_update, get_table_names
+    from core.database import execute_query, get_table_names, init_db
     from services.data_initializer import init_demo_data
     init_db()
     init_demo_data()
@@ -229,7 +227,7 @@ def test_identifier_validation():
     assert _validate_identifier("order_items") == "order_items"
     try:
         _validate_identifier("DROP TABLE")
-        assert False, "Should have raised"
+        raise AssertionError("Should have raised")
     except Exception:
         pass
 
@@ -237,7 +235,6 @@ def test_identifier_validation():
 @test("database: schema caching")
 def test_schema_cache():
     from core.database import get_full_schema
-    from core.cache import cache
     s1 = get_full_schema()
     s2 = get_full_schema()
     assert s1 == s2
@@ -297,8 +294,8 @@ def test_query_limit():
 # ============================================================
 @test("llm: model downgrade routing")
 def test_model_routing():
-    from core.llm import _resolve_model
     from config import settings
+    from core.llm import _resolve_model
     assert _resolve_model(None, "heavy") == settings.llm_model
     assert _resolve_model(None, "light") == settings.llm_model_small
     assert _resolve_model("custom", "heavy") == "custom"
@@ -347,7 +344,7 @@ def test_identifier_security():
     for name in malicious:
         try:
             _validate_identifier(name)
-            assert False, f"Should have blocked: {name}"
+            raise AssertionError(f"Should have blocked: {name}")
         except ValidationError:
             pass
 
@@ -385,30 +382,32 @@ def test_session_id_validation():
 @test("security: input bounds on request models")
 def test_input_bounds():
     from pydantic import ValidationError as PydanticError
+
     from api.chat import ChatRequest
     from api.data_explorer import SavedQueryCreate
     try:
         ChatRequest(message="")
-        assert False, "Should reject empty message"
+        raise AssertionError("Should reject empty message")
     except PydanticError:
         pass
     try:
         ChatRequest(message="x" * 2001)
-        assert False, "Should reject oversized message"
+        raise AssertionError("Should reject oversized message")
     except PydanticError:
         pass
     ChatRequest(message="hello")
     try:
         SavedQueryCreate(name="x" * 101, question="q", sql="SELECT 1")
-        assert False, "Should reject oversized name"
+        raise AssertionError("Should reject oversized name")
     except PydanticError:
         pass
 
 
 @test("security: cache TTL expiry prevents stale data")
 def test_cache_no_stale():
-    from core.cache import TTLCache
     import time
+
+    from core.cache import TTLCache
     c = TTLCache(ttl=1, max_size=10)
     c.set("key", "sensitive_data")
     assert c.get("key") == "sensitive_data"
